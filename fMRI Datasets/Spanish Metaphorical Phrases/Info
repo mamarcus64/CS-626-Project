@@ -19,5 +19,8 @@ Stimuli time = 500s
 Run = 2
 Subject = 18 (sub_064 - sub091)
 
+Experimental design:
++ (0.5s) -> phrase (3.5s) -> + (5s) -> Question (3.5s) [12.5s in total]
+
 
 
