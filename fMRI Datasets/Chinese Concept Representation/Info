@@ -1,1 +1,13 @@
 https://openneuro.org/datasets/ds004301/versions/1.0.2
+
+
+fMRI scanning parameters:
+TR = 2
+Volume = 225 (sub 01~05), 155 each run (sub 06~11)
+Scan time = 450 (sub 01~05), 310 each run (sub 06~11)
+Stimuli time = 430 (sub 01~05), 290 each run (sub 06~11)
+Run = 48 (sub 01~05), 72 (sub 06~11)
+Subject = 11
+
+Experimental design:
+concept display (3s) -> fixation (2s) [5s in total]
