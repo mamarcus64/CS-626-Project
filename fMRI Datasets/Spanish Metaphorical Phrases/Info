@@ -1,1 +1,18 @@
 https://openneuro.org/datasets/ds003481/versions/1.0.3
+Task 4 Comprehension of metaphorical phrases (CMP)
+
+Stimulus Info
+Page 63 in the Metaphora PDF (UNAM Master Thesis by )
+
+Examples: 
+Figurative:               Literal:                  Absurd:
+Corazon de piedra         Muro de piedra            Gelatina de piedra
+(Heart of stone)          (Stone wall)              (Stone jelly)
+Hermana dulce             La fruta dulce            Edificio dulce
+(Sweet sister)            (Sweet fruit)             (Sweet building)
+
+fMRI parameters:
+TR = 2
+
+
+
