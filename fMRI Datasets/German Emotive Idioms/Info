@@ -12,8 +12,8 @@ Individual unknown idioms for individual participants (reported under phenotype)
 
 fMRI scanning parameters:
 TR = 2
-Volume = 267
-Scan time = 454
-Run = 
+Volume = 267 (534s)
+Scan time = 454s
+Run = 3
 Subject = 23
 fmap = Yes
