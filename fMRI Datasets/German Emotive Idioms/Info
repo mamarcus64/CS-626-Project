@@ -1,5 +1,15 @@
 OpenNeuro https://openneuro.org/datasets/ds002727/versions/1.0.2 
 
+This study investigated processing of idiomatic vs literal sentences during silent reading. 
+Participants were asked to read sentences silently for comprehension and no response was required. 
+Occasional comprehension questions required yes/no answers to make sure participants were engaging.
+
+The study was divided in three consecutive runs or scanning sessions. 
+After scanning, participants' knowledge of idioms was tested. 
+
+Individual unknown idioms for individual participants (reported under phenotype) were excluded from the analyses.
+
+
 fMRI scanning parameters:
 TR = 2
 Volume = 
