@@ -17,3 +17,6 @@ Scan time = 454s
 Run = 3
 Subject = 23
 fmap = Yes
+
+!! Stimuli_onset sheets for the 3 runs might be different for different subjects !!
+(not an issue but careful when bulk processing)
