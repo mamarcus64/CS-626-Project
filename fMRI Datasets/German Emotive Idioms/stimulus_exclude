@@ -1,4 +1,9 @@
-participant_id	exclude
+stimuluscode = ID_Code in the stimuli_onset sheets
+serial no = Serial_no in the stimuli_onset sheets
+
+------------------------------------------------
+participant_id	        exclude
+------------------------------------------------
 sub-01	stimuluscode 33 serial no 48 run 1	
         stimuluscode 42 serial no 54 run 3
 
