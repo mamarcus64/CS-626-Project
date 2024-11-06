@@ -1,5 +1,5 @@
 import numpy as np
-import data_reader as dr
+import src.data_reader as dr
 
 from numpy.typing import NDArray
 from scipy.stats import pearsonr
