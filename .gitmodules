@@ -1,0 +1,6 @@
+[submodule "language"]
+	path = language
+	url = https://github.com/brain-score/language.git
+[submodule "brain-score-language"]
+	path = brain-score-language
+	url = https://github.com/brain-score/language.git
