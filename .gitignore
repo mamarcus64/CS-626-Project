@@ -3,3 +3,4 @@ data/
 .DS_Store
 tmp/
 emotive_idioms_dataset/raw_data
+*__pycache__
