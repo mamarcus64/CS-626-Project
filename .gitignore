@@ -1,3 +1,5 @@
 data/
 .venv
 .DS_Store
+tmp/
+emotive_idioms_dataset/raw_data
