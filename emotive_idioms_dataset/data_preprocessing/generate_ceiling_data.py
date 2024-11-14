@@ -46,7 +46,7 @@ class HoldoutSubjectCeiling:
         subjects = set(assembly[self.subject_column].values)
         scores = []
         iterate_subjects = self._rng.choice(list(subjects), size=self._num_bootstraps)  # use only a subset of subjects
-        for subject in tqdm(iterate_subjects, desc='heldout subject'):
+        for subject in iterate_subjects:
             try:
                 subject_assembly = assembly[{'neuroid': [subject_value == subject
                                                          for subject_value in assembly[self.subject_column].values]}]
@@ -96,10 +96,13 @@ class ExtrapolationCeiling:
         subjects = set(assembly[self.subject_column].values)
         subject_subsamples = tuple(range(2, len(subjects) + 1))
         scores = []
-        for num_subjects in tqdm(subject_subsamples, desc='num subjects'):
-            for sub_subjects in self._random_combinations(
+        progress_bar = tqdm(subject_subsamples, desc='subjects collected')
+        for num_subjects in progress_bar:
+            combinations = self._random_combinations(
                     subjects=set(assembly[self.subject_column].values),
-                    num_subjects=num_subjects, choice=self.num_subsamples, rng=self._rng):
+                    num_subjects=num_subjects, choice=self.num_subsamples, rng=self._rng)
+            for i, sub_subjects in enumerate(combinations):
+                progress_bar.set_description(f'num subjects (sub-subject {i}/{len(combinations)})')
                 sub_assembly = assembly[{'neuroid': [subject in sub_subjects
                                                      for subject in assembly[self.subject_column].values]}]
                 selections = {self.subject_column: sub_subjects}
@@ -118,7 +121,9 @@ class ExtrapolationCeiling:
                         continue
                     else:
                         raise e
+        print('Done collecting, merging scores...')
         scores = Score.merge(*scores)
+        print('Done merging scores.')
         return scores
 
     def _random_combinations(self, subjects, num_subjects, choice, rng):
@@ -208,6 +213,7 @@ class ExtrapolationCeiling:
             params = DataAssembly([params], coords={'bootstrap': [bootstrap], 'param': ['v0', 'tau0']},
                                   dims=['bootstrap', 'param'])
             bootstrap_params.append(params)
+        pdb.set_trace()
         bootstrap_params = merge_data_arrays(bootstrap_params)
         # find endpoint and error
         asymptote_threshold = .0005
@@ -232,6 +238,8 @@ class ExtrapolationCeiling:
         valid = ~np.isnan(bootstrapped_scores)
         if sum(valid) < 1:
             raise RuntimeError("No valid scores in sample")
+        # remove nan entries
+        subject_subsamples, bootstrapped_scores = zip(*[(s, b) for s, b in zip(subject_subsamples, bootstrapped_scores) if not np.isnan(b)])
         params, pcov = curve_fit(v, subject_subsamples, bootstrapped_scores,
                                  # v (i.e. max ceiling) is between 0 and 1, tau0 unconstrained
                                  bounds=([0, -np.inf], [1, np.inf]))
@@ -250,7 +258,11 @@ if __name__ == '__main__':
     benchmark = GermanEmotiveIdioms(neural_data=data)
 
     # calculate ceilings and save
-    ceiling = ExtrapolationCeiling(num_bootstraps=1, num_holdout_bootstraps=1)
+    ceiling = ExtrapolationCeiling(num_bootstraps=5, num_holdout_bootstraps=1)
     ceiling_values = ceiling(benchmark.data, benchmark.metric)
-    pdb.set_trace()
-    # np.save(os.path.join(processed_data_directory, "dummy_ceilings.npy"))
+    
+    import json
+    ceiling_dict = {"score": float(ceiling_values.data),
+                    "raw": ceiling_values.raw.data.tolist(),
+                    "neuroid_id": [str(x.data) for x in ceiling_values.raw["neuroid_id"]]}
+    json.dump(ceiling_dict, open(os.path.join(processed_data_directory, "dummy_ceilings.json"), 'w'), indent=4)

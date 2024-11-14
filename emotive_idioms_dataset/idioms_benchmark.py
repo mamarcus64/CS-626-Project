@@ -15,15 +15,20 @@ from brainscore_language.utils.ceiling import ceiling_normalize
 from brainscore_language import benchmark_registry
 
 
-stimuli_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "stimuli.tsv"))
-selected_stimuli_ids = list(range(1, 181)) # "Code" field
+
 
 def _build_id(assembly, coords):
     return [".".join([f"{value}" for value in values]) for values in zip(*[assembly[coord].values for coord in coords])]
 
 class GermanEmotiveIdioms(BenchmarkBase):
 
-    def __init__(self, neural_data, selected_stimuli_ids=selected_stimuli_ids, stimuli_file=stimuli_file):
+    def __init__(self, neural_data):
+        num_subjects = 10
+        voxels_per_subject = 15
+        num_stimuli = 12
+        
+        stimuli_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "stimuli.tsv"))
+        selected_stimuli_ids = list(range(1, num_stimuli + 1)) # "Code" field
         stimuli = pd.read_csv(stimuli_file, sep='\t')
         selected_stimuli = stimuli[stimuli['Code'].isin(selected_stimuli_ids)]
         # seleted stimuli and provided neural data should be the same size
@@ -37,9 +42,9 @@ class GermanEmotiveIdioms(BenchmarkBase):
         # assign each voxel to a subject
         voxel_subjects = []
         voxel_nums = []
-        for i in range(1, 24): # TODO: need to make this more robust/matching other code, will do after sync with Helen
-            voxel_subjects.extend([str(i)] * 2000)
-            voxel_nums.extend(list(range(2000)))
+        for i in range(1, num_subjects + 1): # TODO: need to make this more robust/matching other code, will do after sync with Helen
+            voxel_subjects.extend([str(i)] * voxels_per_subject)
+            voxel_nums.extend(list(range(voxels_per_subject)))
         
         # TODO: add stimulus metadata as coords along the 'presentation' dimension
         self.data = NeuroidAssembly(neural_data, dims=['presentation', 'neuroid'])
@@ -49,6 +54,7 @@ class GermanEmotiveIdioms(BenchmarkBase):
         self.data['stimulus_id'] = ('presentation', selected_stimuli_ids)
         self.data['neuroid_id'] = ('neuroid', _build_id(self.data, ['subject', 'voxel_num']))
         self.data['presentation'] = ('presentation', selected_stimuli_ids)
+        self.data.attrs['identifier'] = 'german_emotive_idioms'
         self.metric = load_metric('linear_pearsonr')
 
 #     def __call__(self, candidate: ArtificialSubject) -> Score:
