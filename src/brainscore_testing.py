@@ -25,8 +25,8 @@ from brainscore_language.model_helpers.huggingface import HuggingfaceSubject
 from brainscore_core.metrics import Score
 
 # might need to log into huggingface beforehand (try huggingface-cli login)
-# model = HuggingfaceSubject(model_id='distilgpt2', region_layer_mapping={})
-model = HuggingfaceSubject(model_id='TUM/GottBERT_base_last', region_layer_mapping={})
+gpt_model = HuggingfaceSubject(model_id='distilgpt2', region_layer_mapping={})
+bert_model = HuggingfaceSubject(model_id='TUM/GottBERT_base_last', region_layer_mapping={})
 
 neural_data_folder = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__))),
                                   "..",
@@ -58,9 +58,12 @@ df = benchmark.data.to_dataframe()
 # print(data)
 # print(data['presentation']['stimulus_id'])
 
+# pdb.set_trace()
+
 layer_scores = []
-for layer in tqdm([f'transformer.h.{block}.ln_1' for block in range(6)], desc='layers'):
-    layer_model = HuggingfaceSubject(model_id='distilgpt2', region_layer_mapping={
+# for layer in tqdm([f'transformer.h.{block}.ln_1' for block in range(6)], desc='layers'):
+for layer in tqdm([f'roberta.encoder.layer.{block}.output.dense' for block in range(12)], desc='layers'):
+    layer_model = HuggingfaceSubject(model_id='TUM/GottBERT_base_last', region_layer_mapping={
         ArtificialSubject.RecordingTarget.language_system: layer})
     layer_score = benchmark(layer_model)
     # package for xarray
