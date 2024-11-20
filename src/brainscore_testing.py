@@ -7,20 +7,56 @@ sys.path.append(PATH_TO_BRAINSCORE_REPO)
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+# imports
 import pdb
+import numpy as np
+from matplotlib import pyplot
+from tqdm import tqdm
+from brainio.assemblies import merge_data_arrays
+import os
+import json
 
 from brainscore_language.model_helpers.huggingface import HuggingfaceSubject
 from brainscore_language import ArtificialSubject
-
-model = HuggingfaceSubject(model_id='distilgpt2', region_layer_mapping={})
-
-pdb.set_trace()
-
-from tqdm import tqdm
-from brainio.assemblies import merge_data_arrays
 from brainscore_language import load_benchmark
+from brainscore_language.benchmarks.german_emotive_idioms import GermanEmotiveIdioms
+from brainscore_language.benchmarks.german_emotive_idioms.benchmark import cka, svcca, rdm
+from brainscore_language.model_helpers.huggingface import HuggingfaceSubject
+from brainscore_core.metrics import Score
 
-benchmark = load_benchmark('Pereira2018.243sentences-linear')
+# might need to log into huggingface beforehand (try huggingface-cli login)
+# model = HuggingfaceSubject(model_id='distilgpt2', region_layer_mapping={})
+model = HuggingfaceSubject(model_id='TUM/GottBERT_base_last', region_layer_mapping={})
+
+neural_data_folder = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__))),
+                                  "..",
+                                  "emotive_idioms_dataset",
+                                  "processed_data")
+neural_data_file = os.path.join(neural_data_folder, "dummy_data.npy")
+ceilings_file = os.path.join(neural_data_folder, "dummy_ceilings.json")
+neural_data = np.load(neural_data_file)
+with open(ceilings_file, "r") as f:
+    ceiling = json.load(f)
+
+print(f"Neural data: {neural_data.shape}")
+print(f"Ceilings: {list(ceiling.keys())}")
+# print(ceiling)
+
+# Cast ceiling to Score
+score = ceiling['score']
+raw = ceiling['raw']
+ceiling = Score(score)
+ceiling.raw = raw
+ceiling.name = 'data'
+print(ceiling)
+
+metric = None
+# metric = cka
+benchmark = GermanEmotiveIdioms(neural_data, ceiling, metric=metric)
+data = benchmark.data
+df = benchmark.data.to_dataframe()
+# print(data)
+# print(data['presentation']['stimulus_id'])
 
 layer_scores = []
 for layer in tqdm([f'transformer.h.{block}.ln_1' for block in range(6)], desc='layers'):
@@ -33,17 +69,3 @@ for layer in tqdm([f'transformer.h.{block}.ln_1' for block in range(6)], desc='l
     layer_scores.append(layer_score)
 layer_scores = merge_data_arrays(layer_scores)
 print(layer_scores)
-
-pdb.set_trace()
-
-import numpy as np
-from matplotlib import pyplot
-
-fig, ax = pyplot.subplots()
-x = np.arange(len(layer_scores))
-ax.scatter(x, layer_scores)
-ax.set_xticks(x)
-ax.set_xticklabels(layer_scores['layer'].values, rotation=90)
-ax.set_ylabel('score')
-
-fig.savefig('tmp/scores.png')

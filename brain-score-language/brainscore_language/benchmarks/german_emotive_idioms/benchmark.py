@@ -35,8 +35,11 @@ class GermanEmotiveIdioms(BenchmarkBase):
         num_subjects = 10
         voxels_per_subject = 15
         num_stimuli = 12
-
-        stimuli_file = os.path.abspath(os.path.join(os.path.pardir, "emotive_idioms_dataset", "stimuli.tsv"))
+        
+        stimuli_file = os.path.join(os.path.dirname(__file__),
+                                       "../../../..",
+                                       "emotive_idioms_dataset",
+                                       "stimuli.tsv")
         selected_stimuli_ids = list(range(1, num_stimuli + 1)) # "Code" field
         stimuli = pd.read_csv(stimuli_file, sep='\t')
         selected_stimuli = stimuli[stimuli['Code'].isin(selected_stimuli_ids)]
