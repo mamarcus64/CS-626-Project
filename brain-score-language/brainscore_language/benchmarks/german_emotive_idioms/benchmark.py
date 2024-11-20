@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pandas as pd
+import scipy
 import sys
 import xarray as xr
 
@@ -30,7 +31,7 @@ def _build_id_from_subjects_and_voxels(voxel_subjects, voxel_nums):
 
 class GermanEmotiveIdioms(BenchmarkBase):
 
-    def __init__(self, neural_data, ceiling):
+    def __init__(self, neural_data, ceiling, metric=None):
         num_subjects = 10
         voxels_per_subject = 15
         num_stimuli = 12
@@ -74,7 +75,12 @@ class GermanEmotiveIdioms(BenchmarkBase):
         self.data.name = 'data'
         self.data.attrs['identifier'] = 'german_emotive_idioms'
 
-        self.metric = load_metric('linear_pearsonr')
+        if metric is None:
+            self.metric = load_metric('linear_pearsonr')
+            self.convert_to_numpy = False
+        else:
+            self.metric = metric
+            self.convert_to_numpy = True
 
         super(GermanEmotiveIdioms, self).__init__(
             identifier="GermanEmotiveIdioms",
@@ -91,6 +97,107 @@ class GermanEmotiveIdioms(BenchmarkBase):
         stimuli = self.data['stimulus']
         predictions = candidate.digest_text(stimuli.values)['neural']
         predictions['stimulus_id'] = 'presentation', stimuli['stimulus_id'].values
-        raw_score = self.metric(predictions, self.data)
+
+        if self.convert_to_numpy:
+        # Extract numpy arrays for custom metrics
+            predictions = predictions.data  # Has shape (12, 768)
+            actual = self.data.data
+        else:
+            actual = self.data
+        
+        raw_score = self.metric(predictions, actual)
         score = ceiling_normalize(raw_score, self.ceiling)
         return score
+    
+# ----------------------------------------------------------------------------------------------------
+# Additional metric definitions
+from sklearn.cross_decomposition import CCA
+from sklearn.decomposition import TruncatedSVD
+
+
+def rsm(activity_matrix):
+    """
+    Compute the Representational Similarity Matrix (RSM).
+    RSM is defined as the dot product of the centered activity matrix with itself.
+    :param activity_matrix: 2D numpy array of shape (n_stimuli, n_features)
+    :return: RSM of shape (n_stimuli, n_stimuli)
+    """
+    # Center the activity matrix
+    activity_centered = activity_matrix - np.mean(activity_matrix, axis=0, keepdims=True)
+    # Compute the RSM as the dot product of the centered matrix
+    rsm = np.dot(activity_centered, activity_centered.T)
+    return rsm
+
+
+def rsa(model_activity, brain_activity):
+    """
+    Perform Representational Similarity Analysis between model and brain RDMs.
+    :param model_activity: 2D numpy array of shape (n_stimuli, n_features) for model
+    :param brain_activity: 2D numpy array of shape (n_stimuli, n_features) for brain
+    :return: RSA score (correlation between model RDM and brain RDM)
+    """
+    model_rdm = rdm(model_activity)
+    brain_rdm = rdm(brain_activity)
+
+    # Flatten the RDMs and compute their correlation
+    model_rdm_flat = model_rdm[np.triu_indices_from(model_rdm, k=1)]
+    brain_rdm_flat = brain_rdm[np.triu_indices_from(brain_rdm, k=1)]
+    rsa_score, _ = scipy.stats.pearsonr(model_rdm_flat, brain_rdm_flat)
+    
+    return rsa_score
+
+
+def cka(rsm1, rsm2):
+    """
+    Compute the Centered Kernel Alignment (CKA) score between two RSMs.
+    :param rsm1: RSM from the ANN of shape (n_stimuli, n_stimuli)
+    :param rsm2: RSM from the brain data of shape (n_stimuli, n_stimuli)
+    :return: CKA similarity score
+    """
+    # Compute the normalized inner product
+    numerator = np.sum(rsm1 * rsm2)
+    denominator = np.sqrt(np.sum(rsm1 * rsm1) * np.sum(rsm2 * rsm2))
+    cka_score = numerator / denominator
+    return cka_score
+
+
+def svcca(data1, data2, svd_components=None):
+    """
+    Perform Singular Vector Canonical Correlation Analysis (SVCCA).
+    :param data1: 2D numpy array (n_samples, n_features1) representing ANN activations.
+    :param data2: 2D numpy array (n_samples, n_features2) representing brain activity.
+    :param svd_components: Number of components to retain for SVD. If None, retains all components.
+    :return: SVCCA similarity score (average correlation across canonical dimensions).
+    """
+    # Step 1: Perform SVD to denoise and reduce dimensions
+    svd1 = TruncatedSVD(n_components=svd_components if svd_components else min(data1.shape))
+    svd2 = TruncatedSVD(n_components=svd_components if svd_components else min(data2.shape))
+    reduced_data1 = svd1.fit_transform(data1)
+    reduced_data2 = svd2.fit_transform(data2)
+
+    # Step 2: Perform Canonical Correlation Analysis (CCA)
+    cca = CCA(n_components=min(reduced_data1.shape[1], reduced_data2.shape[1]))
+    cca_data1, cca_data2 = cca.fit_transform(reduced_data1, reduced_data2)
+
+    # Step 3: Compute correlation for each canonical dimension
+    correlations = [np.corrcoef(cca_data1[:, i], cca_data2[:, i])[0, 1] for i in range(cca_data1.shape[1])]
+
+    # Return the average correlation as the SVCCA similarity score
+    svcca_score = np.mean(correlations)
+    return svcca_score
+
+
+def rdm(activity_matrix):
+    """
+    Compute the Representational Dissimilarity Matrix (RDM).
+    RDM is defined as 1 - correlation between every pair of stimulus representations.
+    :param activity_matrix: 2D numpy array of shape (n_stimuli, n_features)
+    :return: RDM of shape (n_stimuli, n_stimuli)
+    """
+    n_stimuli = activity_matrix.shape[0]
+    rdm = np.zeros((n_stimuli, n_stimuli))
+    for i in range(n_stimuli):
+        for j in range(n_stimuli):
+            if i != j:
+                rdm[i, j] = 1 - scipy.stats.pearsonr(activity_matrix[i], activity_matrix[j])[0]
+    return rdm
