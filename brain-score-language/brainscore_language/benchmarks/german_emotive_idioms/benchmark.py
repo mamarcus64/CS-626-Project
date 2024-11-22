@@ -1,20 +1,28 @@
+# Include the following lines at the top of each file for file pathing.
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../..')) # adjust relative path as needed
+import file_utils
+
 import numpy as np
 import os
 import pandas as pd
 import scipy
 import sys
 import xarray as xr
+import pdb
+from tqdm import tqdm
+import json
 
 from brainio.assemblies import DataAssembly, NeuroidAssembly
 from brainscore_core.benchmarks import BenchmarkBase
 from brainscore_core.metrics import Score, Metric
 
-# Append local brain-score repo to path, brittle but should be fine
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "brain-score-language")))
 from brainscore_language import load_dataset, load_metric
 from brainscore_language.artificial_subject import ArtificialSubject
 from brainscore_language.utils.ceiling import ceiling_normalize
 from brainscore_language import benchmark_registry
+from brainscore_language.metrics.linear_predictivity.metric import NeuralCosineSimilarity
 
 from scipy.stats import pearsonr
 
@@ -31,21 +39,29 @@ def _build_id_from_subjects_and_voxels(voxel_subjects, voxel_nums):
 
 class GermanEmotiveIdioms(BenchmarkBase):
 
-    def __init__(self, neural_data, ceiling, metric=None):
-        num_subjects = 10
-        voxels_per_subject = 15
-        num_stimuli = 12
+    def __init__(self, neural_data, ceiling, metric=None, idiom_type=None):
+        num_subjects = 19
+        voxels_per_subject = 400
         
-        stimuli_file = os.path.join(os.path.dirname(__file__),
-                                       "../../../..",
-                                       "emotive_idioms_dataset",
-                                       "stimuli.tsv")
-        selected_stimuli_ids = list(range(1, num_stimuli + 1)) # "Code" field
+        stimuli_file = os.path.join(file_utils.IDIOMS_DATA_PROCESSING_PATH, "stimuli.tsv")
+        
+        if idiom_type is None:
+            num_stimuli = 180
+            selected_stimuli_ids = list(range(1, num_stimuli + 1)) # "Code" field
+        elif idiom_type == 'idiom':
+            num_stimuli = 90
+            selected_stimuli_ids = list(range(1, 91))
+        elif idiom_type == 'literal':
+            num_stimuli = 90
+            selected_stimuli_ids = list(range(91, 181))
+        
         stimuli = pd.read_csv(stimuli_file, sep='\t')
         selected_stimuli = stimuli[stimuli['Code'].isin(selected_stimuli_ids)]
         sentences = selected_stimuli["Stimulus"].to_numpy().tolist()
 
         # seleted stimuli and provided neural data should be the same size
+        # import pdb
+        # pdb.set_trace()
         assert neural_data.shape[0] == len(selected_stimuli_ids)
         """
         A Neuroid Assembly (https://github.com/brain-score/brainio/blob/main/brainio/assemblies.py)
@@ -92,12 +108,13 @@ class GermanEmotiveIdioms(BenchmarkBase):
             ceiling=ceiling
         )
 
-    def __call__(self, candidate: ArtificialSubject) -> Score:
+    def __call__(self, candidate: ArtificialSubject, layer_num=None, save_folder=None) -> Score:
         candidate.start_neural_recording(
             recording_target=ArtificialSubject.RecordingTarget.language_system,
             recording_type=ArtificialSubject.RecordingType.fMRI
         )
         stimuli = self.data['stimulus']
+        # pdb.set_trace()
         predictions = candidate.digest_text(stimuli.values)['neural']
         predictions['stimulus_id'] = 'presentation', stimuli['stimulus_id'].values
 
@@ -108,9 +125,79 @@ class GermanEmotiveIdioms(BenchmarkBase):
         else:
             actual = self.data
         
-        raw_score = self.metric(predictions, actual)
-        score = ceiling_normalize(raw_score, self.ceiling)
-        return score
+        # normal metric
+        if not isinstance(self.metric, NeuralCosineSimilarity):
+            raw_score = self.metric(predictions, actual)
+            score = ceiling_normalize(raw_score, self.ceiling)
+            return score
+        
+        # neural cosine similarity code. Save values to specific folder.
+        # TODO: rewrite the code so that it's better integrated like the other metrics.
+        else:
+            save_path = os.path.join(file_utils.NEURAL_COSINE_SAVE_PATH if save_folder is None else save_folder, f'layer_{str(layer_num)}')
+            os.makedirs(save_path, exist_ok=True)
+            
+            
+            idiom_indices = list(range(1, 91))
+            literal_indices = list(range(91, 181))
+            
+            # idiom-trained
+            for idiom_index in tqdm(idiom_indices):
+                train_indices = [index for index in idiom_indices if index != idiom_index]
+                test_indices = literal_indices + [idiom_index]
+                
+                def z(items): # zero-index a one-indexed list
+                    return [item - 1 for item in items]
+                
+                similarities = self.metric(
+                    predictions[z(train_indices)],
+                    actual[z(train_indices)],
+                    predictions[z(test_indices)],
+                    actual[z(test_indices)]
+                )
+                
+                result = {
+                    'train_type': 'idiom',
+                    'left_out_index': idiom_index,
+                    'train_indices': train_indices,
+                    'test_indices': test_indices,
+                    'similarities': {}
+                }
+                for test_index, similarity in zip(test_indices, similarities):
+                    similarity = round(float(similarity), 3)
+                    result['similarities'][test_index] = similarity
+                    
+                json.dump(result, open(os.path.join(save_path, f'idiom_leftout_{idiom_index}.json'), 'w'), indent=4)
+                
+            # literal-trained
+            for literal_index in tqdm(literal_indices):
+                train_indices = [index for index in literal_indices if index != literal_index]
+                test_indices = idiom_indices + [literal_index]
+                
+                def z(items): # zero-index a one-indexed list
+                    return [item - 1 for item in items]
+                
+                similarities = self.metric(
+                    predictions[z(train_indices)],
+                    actual[z(train_indices)],
+                    predictions[z(test_indices)],
+                    actual[z(test_indices)]
+                )
+                
+                result = {
+                    'train_type': 'literal',
+                    'left_out_index': literal_index,
+                    'train_indices': train_indices,
+                    'test_indices': test_indices,
+                    'similarities': {}
+                }
+                for test_index, similarity in zip(test_indices, similarities):
+                    similarity = round(float(similarity), 3)
+                    result['similarities'][test_index] = similarity
+                    
+                json.dump(result, open(os.path.join(save_path, f'literal_leftout_{literal_index}.json'), 'w'), indent=4)
+                
+            
     
 # ----------------------------------------------------------------------------------------------------
 # Additional metric definitions
