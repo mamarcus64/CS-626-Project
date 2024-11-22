@@ -87,7 +87,10 @@ class HuggingfaceSubject(ArtificialSubject):
         for part_number, text_part in enumerate(text_iterator):
             # prepare string representation of context
             context = prepare_context(text[:part_number + 1])
-            context_tokens, number_of_tokens = self._tokenize(context, number_of_tokens)
+            # TODO: address this. Current implementation assumes all text parts are concantentated. 
+            # We only want to deal with individual sentences.
+            # context_tokens, number_of_tokens = self._tokenize(context, number_of_tokens)
+            context_tokens, number_of_tokens = self._tokenize(text_part, number_of_tokens)
 
             # prepare recording hooks
             hooks, layer_representations = self._setup_hooks()

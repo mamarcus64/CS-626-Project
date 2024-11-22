@@ -2,6 +2,7 @@ import numpy as np
 import scipy.stats
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import scale
+from scipy.spatial.distance import cosine
 
 from brainio.assemblies import NeuroidAssembly, array_is_element, DataAssembly
 from brainio.assemblies import walk_coords
@@ -15,6 +16,22 @@ class Defaults:
     neuroid_dim = 'neuroid'
     neuroid_coord = 'neuroid_id'
 
+class NeuralCosineSimilarity:
+
+    def __call__(self, train_source, train_target, test_source, test_target):
+        regression = LinearRegression()
+        regression.fit(train_source, train_target)
+        predictions = regression.predict(test_source)
+        
+        assert predictions.shape == test_target.shape
+        
+        similarities = []
+        
+        for i in range(predictions.shape[0]):
+            similarity = 1 - cosine(predictions[i], test_target[i])
+            similarities.append(similarity)
+            
+        return similarities
 
 class XarrayRegression:
     """
