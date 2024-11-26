@@ -1,0 +1,3 @@
+[submodule "brain-score-language"]
+	path = brain-score-language
+	url = git@github.com:emilyxzhou/brain-score-language.git

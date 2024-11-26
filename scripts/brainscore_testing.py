@@ -25,7 +25,8 @@ from brainscore_language.benchmarks.german_emotive_idioms import GermanEmotiveId
 from brainscore_language.benchmarks.german_emotive_idioms.benchmark import cka, svcca, rdm
 from brainscore_language.model_helpers.huggingface import HuggingfaceSubject
 from brainscore_core.metrics import Score
-from brainscore_language.metrics.linear_predictivity.metric import NeuralCosineSimilarity
+from brainscore_language.metrics.neural_cosine_similarity.metric import NeuralCosineSimilarity
+
 
 neural_data = None
 with h5py.File(os.path.join(file_utils.PARENT_PATH, 'fMRI_masked_semantic_data.h5'), 'r') as f:
