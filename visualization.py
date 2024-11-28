@@ -4,6 +4,7 @@ import os
 import pdb
 import json
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def visualize_single_condition_line(data, train_label, test_label, plot_basepath,  model_name, layer_name, metric_name):
@@ -60,15 +61,102 @@ def visualize_all_conditions_line(data_dict, plot_basepath, model_name,layer_nam
     plt.yticks([])  # Remove y-axis ticks
 
     # Save the plot
-    save_path = os.path.join(plot_basepath,metric_name,model_name ,f"{layer_name}_combined_plot.png")
+    save_path = os.path.join(plot_basepath,metric_name,model_name, 'line_plots', f"{layer_name}_conditions.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)  # Ensure the directory exists
     plt.savefig(save_path)
     plt.close() 
 
     print(f"Saved combined plot: {save_path}")
 
+def visualize_all_conditions_violin(data_dict, plot_basepath, model_name, layer_name, metric_name):
+    # Define color mappings for each condition
+    #colors from accessible color-palette: True
+    colors = {'ll_ll': '#DC267F', 'll_fl': '#FFB000', 'fl_ll': '#785EF0', 'fl_fl': '#FE6100'}
+    
+    # Prepare data for Seaborn violin plot
+    all_data = []
+    all_conditions = []
+    for key, values in data_dict.items():
+        all_data.extend(values)  # Flatten the data into a single list
+        all_conditions.extend([key] * len(values))  # Track condition labels
 
-def all_model_visualizations(directory, plot_basepath, metric_name):
+    
+    # # Create a vertical violin plot
+    # sns.violinplot(x=all_conditions, y=all_data, palette=colors, cut=0)
+
+    import pandas as pd
+    df = pd.DataFrame({'Condition': all_conditions, 'Values': all_data})
+
+    # Create a figure
+    plt.figure(figsize=(8, 6))
+    
+    # Create a violin plot
+    ax = sns.violinplot(
+        x='Condition',
+        y='Values',
+        data=df,
+        palette=colors,
+        cut=0,        # Do not extend beyond data range
+        linewidth=0 # Keep the median and IQR lines
+    )
+
+    # Add horizontal lines for median and ends of violin plot
+    for idx, key in enumerate(data_dict.keys()):
+        condition_data = np.array(data_dict[key])
+        
+        # Compute statistics
+        median = np.median(condition_data)
+        min_line = min(condition_data)
+        max_line = max(condition_data)
+        
+        # X-coordinate for this condition
+        x_coord = idx
+        
+        # Plot median and whisker lines
+        plt.hlines(y=median, xmin=x_coord - 0.2, xmax=x_coord + 0.2, color='black', linewidth=2)  # Median
+        plt.hlines(y=min_line, xmin=x_coord - 0.15, xmax=x_coord + 0.15, color='black', linewidth=1)   # Lower end
+        plt.hlines(y=max_line, xmin=x_coord - 0.15, xmax=x_coord + 0.15, color='black', linewidth=1)   # Upper end
+
+
+    # Overlay outliers as stars
+    for key in data_dict.keys():
+        condition_data = data_dict[key]
+        q1 = np.percentile(condition_data, 25)
+        q3 = np.percentile(condition_data, 75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+
+        # Identify outliers
+        outliers = [val for val in condition_data if val < lower_bound or val > upper_bound]
+        
+        if outliers:
+            # Get x-coordinate of the condition
+            x_coord = list(data_dict.keys()).index(key)
+            # Plot outliers as stars
+            plt.scatter([x_coord] * len(outliers), outliers, color='black', marker='*', zorder=3, label='Outliers' if key == list(data_dict.keys())[0] else "")
+
+    for violin in ax.collections:
+        violin.set_alpha(0.5)
+    
+    # Add labels, title, and styling
+    plt.xlabel("Conditions")
+    plt.ylabel(metric_name)
+    plt.title(f"Layer: {layer_name} - {metric_name}")
+    plt.ylim(-0.75, 0.75)
+    
+    sns.despine() 
+
+    # Save the plot
+    save_path = os.path.join(plot_basepath, metric_name, model_name, "violin_plots", f"{layer_name}_conditions.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)  # Ensure the directory exists
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Saved violin plot: {save_path}")
+
+
+def all_model_visualizations(directory, plot_basepath, metric_name, visualization):
     '''
     given a parent model directory, obtain visualizations for layer sub-directories
     args: directory (path)
@@ -78,10 +166,10 @@ def all_model_visualizations(directory, plot_basepath, metric_name):
 
     for mf in model_folders:
         mf_path = os.path.join(directory, mf)
-        all_layer_visualizations(mf_path,plot_basepath, mf, metric_name)
+        all_layer_visualizations(mf_path,plot_basepath, mf, metric_name, visualization)
 
 
-def all_layer_visualizations(directory, plot_basepath, model_name, metric_name):
+def all_layer_visualizations(directory, plot_basepath, model_name, metric_name, visualization):
     '''
     given a parent layer directory, obtain visualizations for layer sub-directories
     args: directory (path)
@@ -93,7 +181,7 @@ def all_layer_visualizations(directory, plot_basepath, model_name, metric_name):
         layer_name = lf
         lf = os.path.join(directory, lf)
         layer_data_dictionary = get_data_dictionary(lf)
-        visualize_all_conditions_line(layer_data_dictionary, plot_basepath, model_name, layer_name, metric_name)
+        visualization(layer_data_dictionary, plot_basepath, model_name, layer_name, metric_name)
 
 
 
@@ -163,4 +251,5 @@ if __name__ == "__main__":
     directory = "/Users/kaitlinzareno/USC/CS-626-Project/neural_cosine_v2"
     plot_basepath = "/Users/kaitlinzareno/USC/CS-626-Project/visualizations"
     metric_name = "Neural_Similarity"
-    all_model_visualizations(directory, plot_basepath, metric_name)
+    visualization  = visualize_all_conditions_violin #pass in visualization method
+    all_model_visualizations(directory, plot_basepath, metric_name, visualization)
