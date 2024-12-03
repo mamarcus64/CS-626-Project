@@ -1,3 +1,9 @@
+# Include the following lines at the top of each file for file pathing.
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..')) # adjust relative path as needed
+import file_utils
+
 import os
 import numpy as np
 
@@ -19,8 +25,8 @@ from brainio.assemblies import DataAssembly, array_is_element, walk_coords
 from brainscore_core.metrics import Score
 
 # append local brain-score repo to path, brittle but should be fine
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "brain-score-language")))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "brain-score-language")))
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from brainscore_language.benchmarks.german_emotive_idioms import GermanEmotiveIdioms
 from brainscore_language.benchmark_helpers import ci_error, manual_merge
@@ -298,12 +304,22 @@ class NoOverlapException(Exception):
 
 if __name__ == '__main__':
     import pdb
+    import sys
     # load data
-    processed_data_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    project_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    
     neural_data = None
-    with h5py.File(os.path.join(project_directory, 'fMRI_masked_semantic_data.h5'), 'r') as f:
+    
+    # identifier = 'masked_sentences'
+    # identifier = 'masked_semantic'
+    identifier = 'semantic_all_language_areas'
+    identifier = 'semantic_MFG'
+    identifier = 'semantic_MTG_IFG_SMA'
+    
+    if len(sys.argv) >= 2:
+        identifier = sys.argv[1]
+        
+    print('starting ceiling calcs:', identifier)
+    
+    with h5py.File(os.path.join(file_utils.VOXEL_PATH, f'fMRI_{identifier}_data.h5'), 'r') as f:
         neural_data = f['fMRI_sentences'][:]
 
     transposed_neural_data = np.transpose(neural_data, axes=(2, 0, 1))
@@ -311,11 +327,11 @@ if __name__ == '__main__':
     benchmark = GermanEmotiveIdioms(neural_data=reshaped_neural_data, ceiling=None)
 
     # calculate ceilings and save
-    ceiling = ExtrapolationCeiling(num_bootstraps=50, num_holdout_bootstraps=2)
+    ceiling = ExtrapolationCeiling(num_bootstraps=50, num_holdout_bootstraps=3)
     ceiling_values = ceiling(benchmark.data, benchmark.metric)
     
     import json
     ceiling_dict = {"score": float(ceiling_values.data),
                     "raw": ceiling_values.raw.data.tolist(),
                     "neuroid_id": [str(x.data) for x in ceiling_values.raw["neuroid_id"]]}
-    json.dump(ceiling_dict, open(os.path.join(processed_data_directory, "fMRI_masked_ceilings.json"), 'w'), indent=4)
+    json.dump(ceiling_dict, open(os.path.join(file_utils.CEILING_PATH, f"fMRI_{identifier}_ceilings.json"), 'w'), indent=4)

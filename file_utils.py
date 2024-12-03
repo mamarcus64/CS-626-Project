@@ -5,6 +5,8 @@ PARENT_PATH = os.path.abspath(os.path.dirname(__file__))
 BRAIN_SCORE_LANGUAGE_REPO_PATH = os.path.join(PARENT_PATH, 'brain-score-language')
 NEURAL_COSINE_SAVE_PATH = os.path.join(PARENT_PATH, 'neural_cosine')
 IDIOMS_DATA_PROCESSING_PATH = os.path.join(PARENT_PATH, 'idioms_data_processing')
+VOXEL_PATH = os.path.join(PARENT_PATH, 'mri_voxel_data')
+CEILING_PATH = os.path.join(PARENT_PATH, 'ceilings')
 
 # Append local brain-score repo to path, brittle but should be fine
 sys.path.append(BRAIN_SCORE_LANGUAGE_REPO_PATH)
