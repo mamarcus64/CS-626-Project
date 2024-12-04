@@ -26,6 +26,7 @@ from brainscore_language.benchmarks.german_emotive_idioms.benchmark import cka, 
 from brainscore_language.model_helpers.huggingface import HuggingfaceSubject
 from brainscore_core.metrics import Score
 from brainscore_language.metrics.neural_cosine_similarity.metric import NeuralCosineSimilarity
+from brainscore_language.metrics.transformation_regression.metric import TransformationRegression
 
 
 # h5_name, ceiling_name = 'fMRI_masked_semantic_data.h5', 'fMRI_masked_semantic_ceilings.json'
@@ -78,9 +79,10 @@ ceiling.raw = raw
 ceiling.name = 'data'
 
 # pick metric
-metric = None # defaults to linear pearson correlation
+#metric = None # defaults to linear pearson correlation
 # metric = cka
 # metric = NeuralCosineSimilarity()
+metric = TransformationRegression()
 
 if idiom_type is None:
     selected_neural_data = reshaped_neural_data
@@ -120,6 +122,10 @@ elif model_name == 'meta-llama/Llama-3.2-1B':
     # layer_names = ['model.embed_tokens'] + [f'model.layers.{block}.mlp.gate_proj' for block in range(16)]
     layer_names = [f'model.layers.{block}.mlp.gate_proj' for block in range(8, 11)]
     
+
+get_transformations = True
+if get_transformations:
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
 model = AutoModelForCausalLM.from_pretrained(model_name, ignore_mismatched_sizes=True)
 print(model)
