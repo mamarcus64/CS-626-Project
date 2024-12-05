@@ -322,9 +322,14 @@ if __name__ == '__main__':
     with h5py.File(os.path.join(file_utils.VOXEL_PATH, f'fMRI_{identifier}_data.h5'), 'r') as f:
         neural_data = f['fMRI_sentences'][:]
 
-    transposed_neural_data = np.transpose(neural_data, axes=(2, 0, 1))
+    num_subjects = neural_data.shape[1]
+
+    transposed_neural_data = np.transpose(neural_data, axes=(2, 1, 0))
     reshaped_neural_data = transposed_neural_data.reshape(neural_data.shape[2], -1)
-    benchmark = GermanEmotiveIdioms(neural_data=reshaped_neural_data, ceiling=None)
+    benchmark = GermanEmotiveIdioms(num_subjects=num_subjects,
+            neural_data=reshaped_neural_data,
+            selected_stimuli_ids=list(range(1, 181)),
+            ceiling=None)
 
     # calculate ceilings and save
     ceiling = ExtrapolationCeiling(num_bootstraps=50, num_holdout_bootstraps=3)

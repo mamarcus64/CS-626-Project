@@ -6,3 +6,5 @@ emotive_idioms_dataset/raw_data
 *__pycache__
 *.h5
 neural_cosine/
+results
+mri_voxel_data

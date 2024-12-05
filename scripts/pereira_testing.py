@@ -20,9 +20,13 @@ for layer in tqdm([f'transformer.h.{block}.ln_1' for block in range(6)], desc='l
     layer_model = HuggingfaceSubject(model_id='distilgpt2', region_layer_mapping={
         ArtificialSubject.RecordingTarget.language_system: layer})
     layer_score = benchmark(layer_model)
+    print(layer_score)
     # package for xarray
     layer_score = layer_score.expand_dims('layer')
     layer_score['layer'] = [layer]
     layer_scores.append(layer_score)
 layer_scores = merge_data_arrays(layer_scores)
 print(layer_scores)
+
+import pdb
+pdb.set_trace()

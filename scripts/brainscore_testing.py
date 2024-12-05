@@ -30,21 +30,24 @@ from brainscore_language.metrics.neural_cosine_similarity.metric import NeuralCo
 
 # h5_name, ceiling_name = 'fMRI_masked_semantic_data.h5', 'fMRI_masked_semantic_ceilings.json'
 # h5_name, ceiling_name = 'fMRI_masked_sentences_data.h5', 'fMRI_masked_semantic_ceilings.json'
-h5_name, ceiling_name = 'fMRI_semantic_all_language_areas_data.h5', 'fMRI_masked_semantic_ceilings.json'
+# h5_name, ceiling_name = 'fMRI_semantic_all_language_areas_data.h5', 'fMRI_masked_semantic_ceilings.json'
 # h5_name, ceiling_name = 'fMRI_semantic_MFG_data.h5', 'fMRI_masked_semantic_ceilings.json'
-# h5_name, ceiling_name = 'fMRI_semantic_MTG_IFG_SMA_data.h5', 'fMRI_masked_semantic_ceilings.json'
+h5_name, ceiling_name = 'fMRI_semantic_MTG_IFG_SMA_data.h5', 'fMRI_masked_semantic_ceilings.json'
 
-# model_name = 'distilgpt2'
-model_name = 'TUM/GottBERT_base_last'
+model_name = 'distilgpt2'
+# model_name = 'benjamin/gerpt2'
+# model_name = 'TUM/GottBERT_base_last'
 # model_name = 'DiscoResearch/Llama3-German-8B'
 # model_name = 'meta-llama/Llama-3.2-1B'
+
+metric = None
 
 if len(sys.argv) >= 2:
     model_name = sys.argv[1]
 
 # idiom_type = 'idiom'
-# idiom_type = 'literal'
-idiom_type = None
+idiom_type = 'literal'
+# idiom_type = None
 
 
 neural_data = None
@@ -59,7 +62,7 @@ if standardize:  # mean=0, std=1
     
 num_subjects = neural_data.shape[1]
 
-transposed_neural_data = np.transpose(neural_data, axes=(2, 0, 1))
+transposed_neural_data = np.transpose(neural_data, axes=(2, 1, 0))
 reshaped_neural_data = transposed_neural_data.reshape(neural_data.shape[2], -1)
 
 ceilings_file = os.path.join(file_utils.CEILING_PATH, ceiling_name)
@@ -76,11 +79,6 @@ raw = ceiling['raw']
 ceiling = Score(score)
 ceiling.raw = raw
 ceiling.name = 'data'
-
-# pick metric
-metric = None # defaults to linear pearson correlation
-# metric = cka
-# metric = NeuralCosineSimilarity()
 
 if idiom_type is None:
     selected_neural_data = reshaped_neural_data
@@ -109,6 +107,8 @@ df = benchmark.data.to_dataframe()
 if model_name == 'distilgpt2':
     # layer_names = [f'transformer.h.{block}.ln_1' for block in range(6)]
     layer_names = [f'transformer.h.{block}.ln_1' for block in range(3, 6)]
+elif model_name == 'benjamin/gerpt2':
+    layer_names = [f'transformer.h.{block}.ln_1' for block in range(0, 12)]
 elif model_name == 'TUM/GottBERT_base_last':
     layer_names = [f'roberta.encoder.layer.{block}.attention' for block in range(6, 9)]
     # layer_names = ['roberta.embeddings.LayerNorm'] + [f'roberta.encoder.layer.{block}.output.LayerNorm' for block in range(12)]
@@ -130,7 +130,7 @@ layer_scores = []
 for i, layer in tqdm(enumerate(layer_names), desc='layers', total=len(layer_names)):
     layer_model = HuggingfaceSubject(model_id=model_name, model=model, region_layer_mapping={
         ArtificialSubject.RecordingTarget.language_system: layer})
-    layer_score = benchmark(layer_model, i, save_folder=os.path.join(file_utils.PARENT_PATH, f'{model_name.replace("/", "_")}'))
+    layer_score = benchmark(layer_model)
     print(layer_score)
     # package for xarray
     layer_score = layer_score.expand_dims('layer')
